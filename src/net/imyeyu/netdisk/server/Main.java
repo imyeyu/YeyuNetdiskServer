@@ -24,16 +24,17 @@ public class Main {
 		
 		log.info("正在启动服务..");
 
+		// 获取监听端口
 		final int PUBLIC_PORT = Integer.valueOf(config.get("portPublic").toString());
 		final int STATE_PORT = Integer.valueOf(config.get("portState").toString());
 		final int UPLOAD_PORT = Integer.valueOf(config.get("portUpload").toString());
 		final int DOWNLOAD_PORT = Integer.valueOf(config.get("portDownload").toString());
-		
+		// 获取通信令牌
 		TOKEN = config.get("token").toString();
 		if (!Boolean.valueOf(config.get("eToken").toString())) {
 			TOKEN = YeyuUtils.encode().generateBase(TOKEN);
 		}
-
+		// 根目录检查
 		root = config.get("root").toString();
 		String path = System.getProperty("user.dir");
 		path = path.replaceAll("\\\\", "\\\\\\\\");
@@ -41,11 +42,21 @@ public class Main {
 		File rootFolder = new File(root);
 		if (!rootFolder.exists()) rootFolder.mkdirs();
 		log.info("云盘根目录：" + root);
-		
+		// 启动监听核心
 		new PublicListener(PUBLIC_PORT).start();
 		new StateListener(STATE_PORT).start();
 		new UploadListener(UPLOAD_PORT).start();
 		new DownloadListener(DOWNLOAD_PORT).start();
+		// 其他文件夹
+		if (config.get("photo") != null) {
+			(new File(Main.root + File.separator + config.get("photo").toString())).mkdirs();
+		}
+		if (config.get("document") != null) {
+			(new File(Main.root + File.separator + config.get("document").toString())).mkdirs();
+		}
+		if (config.get("otherBackup") != null) {
+			(new File(Main.root + File.separator + config.get("otherBackup").toString())).mkdirs();
+		}
 		
 		log.info("通用请求端口：" + PUBLIC_PORT);
 		log.info("状态请求端口：" + STATE_PORT);

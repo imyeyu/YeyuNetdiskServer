@@ -45,6 +45,7 @@ public class UploadSocket extends Thread {
 	private void upload(JsonElement value) throws Exception {
 		// 唤醒
 		JsonObject jo = (JsonObject) jp.parse(value.getAsString());
+		(new File(Main.root + jo.get("toPath").getAsString())).mkdirs();
 		File file = new File(Main.root + jo.get("toPath").getAsString() + jo.get("name").getAsString());
 		Main.log.info("请求文件上传 -> " + file.getAbsolutePath());
 		// 准备就绪
@@ -53,7 +54,7 @@ public class UploadSocket extends Thread {
 		// 接收
 		DataInputStream dis = new DataInputStream(socket.getInputStream());
 		FileOutputStream fos = new FileOutputStream(file);
-		byte[] bytes = new byte[1024];
+		byte[] bytes = new byte[4096];
 		int length = 0;
 		while ((length = dis.read(bytes, 0, bytes.length)) != -1) {
 			fos.write(bytes, 0, length);

@@ -51,7 +51,7 @@ public class DownloadSocket extends Thread {
 	private void download(JsonElement value) throws Exception {
 		// 唤醒
 		JsonObject jo = (JsonObject) jp.parse(value.getAsString());
-		File file = new File(Main.root + jo.get("path").getAsString() + jo.get("name").getAsString());
+		File file = new File(Main.root + jo.get("targetPath").getAsString() + jo.get("name").getAsString());
 		Main.log.info("请求文件下载 -> " + file.getAbsolutePath());
 		// 准备就绪
 		os = socket.getOutputStream();
@@ -59,12 +59,13 @@ public class DownloadSocket extends Thread {
 		// 发送
 		FileInputStream fis = new FileInputStream(file);
 		DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-		byte[] bytes = new byte[1024];
+		byte[] bytes = new byte[4096];
 		int length = 0;
 		while ((length = fis.read(bytes, 0, bytes.length)) != -1) {
 			dos.write(bytes, 0, length);
 			dos.flush();
 		}
+		dos.flush();
 		Main.log.info("文件发送完成 -> " + file.getAbsolutePath());
 		if (fis != null) fis.close();
 		if (dos != null) dos.close();
