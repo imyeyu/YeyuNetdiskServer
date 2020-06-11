@@ -20,6 +20,7 @@ import com.google.gson.JsonParser;
 
 import net.imyeyu.netdisk.server.Main;
 import net.imyeyu.netdisk.server.bean.ServerStatus;
+import net.imyeyu.netdisk.server.listener.StateListener;
 import net.imyeyu.utils.Logger;
 
 public class StateSocket extends Thread {
@@ -28,8 +29,10 @@ public class StateSocket extends Thread {
 
 	private Socket socket;
 	private Sigar sigar = new Sigar();
+	private StateListener listener;
 
-	public StateSocket(Socket socket) {
+	public StateSocket(StateListener listener, Socket socket) {
+		this.listener = listener;
 		this.socket = socket;
 		this.log = Main.log;
 		
@@ -47,6 +50,8 @@ public class StateSocket extends Thread {
 					os.write((new Gson().toJson(getServerStatus()) + "\r\n").getBytes("UTF-8"));
 					sleep(1000);
 				}
+			} else {
+				log.info("验证失败，IP -> " + socket.getInetAddress() + "，客户端 TOKEN -> " + jo.get("token").getAsString());
 			}
 			br.close();
 			os.close();
@@ -56,6 +61,7 @@ public class StateSocket extends Thread {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		listener.remove(socket);
 	}
 
 	private ServerStatus getServerStatus() {
@@ -63,7 +69,7 @@ public class StateSocket extends Thread {
 		try {
 			Mem mem = sigar.getMem();
 			CpuPerc cp = sigar.getCpuPerc();
-			FileSystem fs = sigar.getFileSystemList()[0];
+			FileSystem fs = sigar.getFileSystemList()[1];
 			FileSystemUsage usage = sigar.getFileSystemUsage(fs.getDirName());
 
 			status.setCpuUse(cp.getCombined());

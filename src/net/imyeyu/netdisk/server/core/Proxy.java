@@ -1,6 +1,7 @@
 package net.imyeyu.netdisk.server.core;
 
 import java.io.File;
+import java.io.IOException;
 
 import com.google.gson.JsonElement;
 
@@ -41,19 +42,24 @@ public class Proxy implements CoreAPI {
 		return core.getFolderList(value);
 	}
 
-	public void zip(JsonElement value) {
+	public void zip(JsonElement value) throws Exception {
 		log.info("压缩文件 -> " + value.getAsString());
 		core.zip(value);
 	}
 
-	public void unZip(JsonElement value) {
+	public void unZip(JsonElement value) throws Exception {
 		log.info("解压文件 -> " + value.getAsString());
 		core.unZip(value);
 	}
 
-	public boolean newFolder(JsonElement value) {
+	public void newFolder(JsonElement value) {
 		log.info("新建文件夹 -> " + value.getAsString());
-		return core.newFolder(value);
+		core.newFolder(value);
+	}
+
+	public void newText(JsonElement value) throws IOException {
+		log.info("新建文本文档 -> " + value.getAsString());
+		core.newText(value);
 	}
 
 	public boolean renameFile(JsonElement value) {
@@ -86,8 +92,13 @@ public class Proxy implements CoreAPI {
 		return core.getPhotoDateList();
 	}
 
-	public String getPhotoInfo(JsonElement value) throws Exception {
+	public String getPhotoInfo(JsonElement value) {
 		log.info("照片管理器 -> 照片信息 -> " + value.getAsString());
 		return core.getPhotoInfo(value);
+	}
+
+	public String getMP4Info(JsonElement value) throws Exception {
+		log.info("获取 MP4 元数据 -> " + value.getAsString());
+		return core.getMP4Info(value);
 	}
 }

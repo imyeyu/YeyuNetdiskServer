@@ -1,6 +1,7 @@
 package net.imyeyu.netdisk.server.core;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -26,16 +27,18 @@ import javafx.scene.image.Image;
 import net.imyeyu.netdisk.server.Main;
 import net.imyeyu.netdisk.server.bean.FileBean;
 import net.imyeyu.netdisk.server.bean.FolderBean;
+import net.imyeyu.netdisk.server.bean.MP4Info;
 import net.imyeyu.netdisk.server.bean.PhotoInfo;
 import net.imyeyu.netdisk.server.bean.PhotoList;
 import net.imyeyu.netdisk.server.bean.PhotoList.Month;
-import net.imyeyu.netdisk.server.util.Zip;
+import net.imyeyu.netdisk.server.util.ZipUtils;
 import net.imyeyu.utils.YeyuUtils;
 
 public class Core implements CoreAPI {
 
+	private static final String SEP = File.separator;
+	
 	private Gson gson = new Gson();
-	private String sep = File.separator;
 	private JsonParser jp = new JsonParser();
 	private Map<String, Object> config = Main.config;
 	
@@ -43,12 +46,9 @@ public class Core implements CoreAPI {
 	public String getConfig() {
 		Map<String, Object> result = new HashMap<>();
 		result.put("compressImg", config.get("compressImg").toString());
-		result.put("photo", sep + config.get("photo").toString());
-		result.put("document", sep + config.get("document").toString());
-		result.put("otherBackup", sep + config.get("otherBackup").toString());
-		if (config.get("publicFile") != null) {
-			result.put("publicFile", config.get("publicFile").toString());
-		}
+		result.put("photo", SEP + config.get("photo").toString());
+		result.put("navList", config.get("navList").toString());
+		if (config.get("publicFile") != null) result.put("publicFile", config.get("publicFile").toString());
 		return gson.toJson(result);
 	}
 
@@ -75,8 +75,7 @@ public class Core implements CoreAPI {
 		if (files == null) return "null";
 		// 文件夹
 		for (int i = 0, l = files.length; i < l; i++) {
-			if (files[i].isHidden())
-				continue;
+			if (files[i].isHidden()) continue;
 			if (!files[i].isFile()) {
 				file = new FileBean();
 				file.setName("folder." + files[i].getName());
@@ -87,8 +86,7 @@ public class Core implements CoreAPI {
 		// 文件
 		String name, format = "unknown";
 		for (int i = 0, l = files.length; i < l; i++) {
-			if (files[i].isHidden())
-				continue;
+			if (files[i].isHidden()) continue;
 			if (files[i].isFile()) {
 				name = files[i].getName();
 				format = name.lastIndexOf(".") != -1 ? name.substring(name.lastIndexOf(".") + 1) : format;
@@ -130,52 +128,53 @@ public class Core implements CoreAPI {
 	}
 
 	// 压缩文件
-	public void zip(JsonElement value) {
+	public void zip(JsonElement value) throws Exception {
 		value = (JsonElement) jp.parse(value.getAsString());
 		JsonObject jo = value.getAsJsonObject();
 		// 压缩列表
 		JsonArray list = jo.get("list").getAsJsonArray();
 		String path = jo.get("path").getAsString();
-		if (list.size() == 1) { // 单文件压缩
-			File formFile = new File(Main.root + path + sep + list.get(0).getAsString());
-			File toFile = new File(Main.root + path + sep + jo.get("name").getAsString() + ".zip");
-			(new Zip(toFile)).zipFiles(formFile);
-		} else { // 多文件压缩
-			String tmpFolder = Main.root + path + sep + jo.get("name").getAsString() + sep;
-			String fromFileName;
-			File formFile;
-			File tmpFile;
-			for (int i = 0; i < list.size(); i++) {
-				fromFileName = list.get(i).getAsString();
-				formFile = new File(Main.root + fromFileName);
-				tmpFile = new File(tmpFolder + fromFileName.substring(fromFileName.lastIndexOf("\\") + 1));
-				formFile.renameTo(tmpFile);
-			}
-			tmpFile = new File(tmpFolder);
-			File toFile = new File(Main.root + path + sep + jo.get("name").getAsString() + ".zip");
-			(new Zip(tmpFile)).zipFiles(toFile);
+		String name = jo.get("name").getAsString();
+		File toFile = new File(Main.root + path + SEP + name.substring(name.lastIndexOf(SEP) + 1) + ".zip");
+		List<File> from = new ArrayList<>();
+		for (int i = 0; i < list.size(); i++) {
+			from.add(new File(Main.root + SEP + list.get(i).getAsString()));
 		}
+		ZipUtils.zip(from, toFile.getParent(), toFile.getName());
 	}
 	
 	// 解压文件
-	public void unZip(JsonElement value) {
+	public void unZip(JsonElement value) throws Exception {
 		value = (JsonElement) jp.parse(value.getAsString());
 		JsonObject jo = value.getAsJsonObject();
 		String zip = Main.root + jo.get("zip").getAsString();
 		String path = Main.root + jo.get("path").getAsString();
-		(new Zip(path)).unZip(new File(zip));
+		ZipUtils.unzip(zip, path);
 	}
 
 	// 新建文件夹
-	public boolean newFolder(JsonElement value) {
+	public void newFolder(JsonElement value) {
 		String path = value.getAsString();
+		path = !path.endsWith(SEP) ? path + SEP : path; 
 		int i = 2;
 		File file = new File(Main.root + path + "新建文件夹");
 		while (file.exists()) {
 			file = new File(Main.root + path + "新建文件夹 (" + i + ")");
 			i++;
 		}
-		return file.mkdir();
+		file.mkdir();
+	}
+	
+	// 新建文本文档
+	public void newText(JsonElement value) throws IOException {
+		String path = value.getAsString();
+		int i = 2;
+		File file = new File(Main.root + path + "文本文档.txt");
+		while (file.exists()) {
+			file = new File(Main.root + path + "文本文档 (" + i + ").txt");
+			i++;
+		}
+		file.createNewFile();
 	}
 
 	// 重命名
@@ -205,7 +204,7 @@ public class Core implements CoreAPI {
 		for (int i = 0; i < list.size(); i++) {
 			file = list.get(i).getAsString();
 			fromFile = new File(Main.root + file);
-			fromFile.renameTo(new File(Main.root + path + file.substring(file.lastIndexOf("\\") + 1)));
+			fromFile.renameTo(new File(Main.root + path + SEP + file.substring(file.lastIndexOf("\\") + 1)));
 		}
 	}
 
@@ -218,14 +217,15 @@ public class Core implements CoreAPI {
 		String publicPath = config.get("publicFile").toString();
 		toPath = (toPath.indexOf(publicPath) == -1) ? Main.root + toPath : publicPath;
 		String file;
-		File fromFile;
+		File fromFile, toFile;
 		for (int i = 0; i < list.size(); i++) {
 			file = list.get(i).getAsString();
-			fromFile = new File(Main.root + sep + file);
+			fromFile = new File(Main.root + SEP + file);
 			if (fromFile.isFile()) {
-				Files.copy(fromFile.toPath(), new File(toPath + sep + file.substring(file.lastIndexOf("\\") + 1)).toPath());
+				toFile = new File(toPath + SEP + file.substring(file.lastIndexOf("\\") + 1));
+				Files.copy(fromFile.toPath(), toFile.toPath());
 			} else {
-				copyDirectiory(fromFile.getAbsolutePath(), toPath + sep + file);
+				copyDirectiory(fromFile.getPath(), toPath + SEP + file.substring(file.lastIndexOf(SEP) + 1));
 			}
 		}
 	}
@@ -237,13 +237,13 @@ public class Core implements CoreAPI {
 		for (int i = 0; i < file.length; i++) {
 			if (file[i].isFile()) {
 				File sourceFile = file[i];
-				File targetFile = new File(new File(targetDir).getAbsolutePath() + sep + file[i].getName());
+				File targetFile = new File(targetDir + SEP + file[i].getName());
 				Files.copy(sourceFile.toPath(), targetFile.toPath());
 				continue;
 			}
 			if (file[i].isDirectory()) {
-				String dir1 = sourceDir + sep + file[i].getName();
-				String dir2 = targetDir + sep + file[i].getName();
+				String dir1 = sourceDir + SEP + file[i].getName();
+				String dir2 = targetDir + SEP + file[i].getName();
 				copyDirectiory(dir1, dir2);
 			}
 		}
@@ -262,7 +262,7 @@ public class Core implements CoreAPI {
 
 	// 获取照片列表
 	public String getPhotoDateList() {
-		String photoRoot = Main.root + sep + "照片";
+		String photoRoot = Main.root + SEP + "照片";
 		File folder = new File(photoRoot);
 		folder.mkdirs();
 
@@ -321,14 +321,14 @@ public class Core implements CoreAPI {
 
 	// 新建年份
 	public void addYear(String year) {
-		(new File(Main.root + sep + "照片" + sep + year)).mkdirs();
+		(new File(Main.root + SEP + "照片" + SEP + year)).mkdirs();
 	}
 
 	// 获取照片信息
 	public String getPhotoInfo(JsonElement value) {
 		PhotoInfo info = new PhotoInfo();
 
-		File file = new File(Main.root + sep + "照片" + sep + value.getAsString());
+		File file = new File(Main.root + SEP + "照片" + SEP + value.getAsString());
 		info.setName(file.getName());
 		info.setPos(file.getAbsolutePath());
 		info.setSize(String.valueOf(file.length()));
@@ -401,5 +401,32 @@ public class Core implements CoreAPI {
 		double miao = Double.parseDouble(point.substring(point.lastIndexOf(" "), point.indexOf("\"")).trim());
 		double duStr = du + fen / 60 + miao / 60 / 60;
 		return String.valueOf(duStr);
+	}
+
+	// 获取 MP4 元数据
+	public String getMP4Info(JsonElement value) throws Exception {
+		MP4Info info = new MP4Info();
+
+		File file = new File(Main.root + SEP + value.getAsString());
+		Metadata metadata = ImageMetadataReader.readMetadata(file);
+		for (Directory dir : metadata.getDirectories()) {
+			if (dir == null) continue;
+			for (Tag tag : dir.getTags()) {
+				String tagName = tag.getTagName();
+				String desc = tag.getDescription();
+				switch (tagName) {
+					case "Width":
+						info.setWidth(desc.replaceAll(" pixels", ""));
+						break;
+					case "Height":
+						info.setHeight(desc.replaceAll(" pixels", ""));
+						break;
+					case "Rotation":
+						info.setDeg(Integer.valueOf(desc));
+						break;
+				}
+			}
+		}
+		return gson.toJson(info);
 	}
 }

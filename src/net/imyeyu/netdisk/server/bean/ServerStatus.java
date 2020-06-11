@@ -45,7 +45,7 @@ public class ServerStatus {
 	}
 
 	public void setDiskUse(long diskUse) {
-		this.diskUse = diskUse;
+		this.diskUse = diskUse * 1000;
 	}
 
 	public long getDiskMax() {
@@ -53,6 +53,6 @@ public class ServerStatus {
 	}
 
 	public void setDiskMax(long diskMax) {
-		this.diskMax = diskMax;
+		this.diskMax = diskMax * 1000;
 	}
 }
